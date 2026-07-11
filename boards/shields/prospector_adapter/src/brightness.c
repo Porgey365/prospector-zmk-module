@@ -8,12 +8,24 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(als, 4);
 
+#include "brightness.h"
+
 static const struct device *pwm_leds_dev = DEVICE_DT_GET_ONE(pwm_leds);
 #define DISP_BL DT_NODE_CHILD_IDX(DT_NODELABEL(disp_bl))
 
 #ifdef CONFIG_PROSPECTOR_USE_AMBIENT_LIGHT_SENSOR
 
 static uint8_t current_brightness = 100;
+
+/* Set by prospector_brightness_set_idle() (idle_timeout.c). When true, the
+ * als_thread loop below drives towards 0 instead of the ambient-light
+ * reading, reusing the existing bl_fade() ramp so the screen fades out/in
+ * instead of cutting instantly. */
+static bool idle_off = false;
+
+void prospector_brightness_set_idle(bool idle) {
+    idle_off = idle;
+}
 
 #define SENSOR_MIN      0       // Minimum sensor reading
 #define SENSOR_MAX      100   // Maximum sensor reading
@@ -49,6 +61,10 @@ uint8_t map_light_to_pwm(int32_t sensor_reading) {
     );
 
     return pwm_value;
+}
+
+static uint8_t target_brightness(int32_t sensor_reading) {
+    return idle_off ? 0 : map_light_to_pwm(sensor_reading);
 }
 
 uint8_t bl_fade(uint8_t source, uint8_t target) {
@@ -107,7 +123,7 @@ extern void als_thread(void *d0, void *d1, void *d2) {
 
         // LOG_INF("ambient light intensity %d", intensity.val1);
 
-        mapped_brightness = map_light_to_pwm(intensity.val1);
+        mapped_brightness = target_brightness(intensity.val1);
         // LOG_INF("NORMAL: mapped PWM duty cycle %d\n", mapped_brightness);
 
         if (abs(mapped_brightness - current_brightness) > FADE_THRESHOLD) {
@@ -123,7 +139,7 @@ extern void als_thread(void *d0, void *d1, void *d2) {
                     LOG_ERR("Cannot read ALS data.\n");
                 }
 
-                mapped_brightness = map_light_to_pwm(intensity.val1);
+                mapped_brightness = target_brightness(intensity.val1);
                 // LOG_INF("BURST: mapped PWM duty cycle %d\n", mapped_brightness);
 
                 if (abs(mapped_brightness - current_brightness) > FADE_THRESHOLD) {
@@ -146,6 +162,10 @@ K_THREAD_DEFINE(als_tid, 1024, als_thread, NULL, NULL, NULL, K_LOWEST_APPLICATIO
                 0);
 
 #else
+
+void prospector_brightness_set_idle(bool idle) {
+    led_set_brightness(pwm_leds_dev, DISP_BL, idle ? 0 : CONFIG_PROSPECTOR_FIXED_BRIGHTNESS);
+}
 
 static int init_fixed_brightness(void) {
     led_set_brightness(pwm_leds_dev, DISP_BL, CONFIG_PROSPECTOR_FIXED_BRIGHTNESS);

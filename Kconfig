@@ -81,3 +81,12 @@ config PROSPECTOR_LAYER_NAME_UPPERCASE
     default y
     help
       When enabled, layer names will be converted to uppercase for display.
+
+config PROSPECTOR_IDLE_TIMEOUT_S
+    int "Display idle timeout in seconds (0 = disabled)"
+    default 0
+    help
+      Turn the display off after this many seconds of no keyboard activity
+      (no key pressed on the dongle or either split half). Turns back on
+      immediately on the next keypress. 0 disables the idle timeout, so the
+      display never turns off on its own.
