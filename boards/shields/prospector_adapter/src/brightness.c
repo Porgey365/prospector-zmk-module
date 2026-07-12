@@ -24,7 +24,7 @@ static uint8_t current_brightness = 100;
 static bool idle_off = false;
 
 void prospector_brightness_set_idle(bool idle) {
-    LOG_INF("prospector_brightness_set_idle(%d), current_brightness=%d", idle, current_brightness);
+    printk("PROSPECTOR: brightness_set_idle(%d), current_brightness=%d\n", idle, current_brightness);
     idle_off = idle;
 }
 
@@ -128,7 +128,7 @@ extern void als_thread(void *d0, void *d1, void *d2) {
         // LOG_INF("NORMAL: mapped PWM duty cycle %d\n", mapped_brightness);
 
         if (idle_off && abs(mapped_brightness - current_brightness) <= FADE_THRESHOLD) {
-            LOG_INF("idle_off but |target(%d) - current(%d)| <= threshold(%d), fade skipped",
+            printk("PROSPECTOR: idle_off but |target(%d) - current(%d)| <= threshold(%d), fade skipped\n",
                     mapped_brightness, current_brightness, FADE_THRESHOLD);
         }
 
