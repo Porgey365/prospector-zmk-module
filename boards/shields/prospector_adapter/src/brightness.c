@@ -24,7 +24,6 @@ static uint8_t current_brightness = 100;
 static bool idle_off = false;
 
 void prospector_brightness_set_idle(bool idle) {
-    printk("PROSPECTOR: brightness_set_idle(%d), current_brightness=%d\n", idle, current_brightness);
     idle_off = idle;
 }
 
@@ -90,6 +89,17 @@ uint8_t bl_fade(uint8_t source, uint8_t target) {
         k_msleep(increasing ? FADE_SLEEP_BRIGHTEN_MS : FADE_SLEEP_DARKEN_MS);
     }
 
+    // The loop above writes the PWM value *before* stepping current_brightness
+    // towards target, so the very last step (current_brightness == target) is
+    // never actually written to hardware -- current_brightness the variable
+    // reaches target, but the backlight itself is left one FADE_STEP short
+    // (e.g. stuck at 1% instead of 0%, a faint but visible glow instead of
+    // fully off). Commit the exact target explicitly.
+    current_brightness = target;
+    if (led_set_brightness(pwm_leds_dev, DISP_BL, current_brightness)) {
+        LOG_ERR("Failed to set brightness");
+    }
+
     return 0;
 }
 
@@ -126,11 +136,6 @@ extern void als_thread(void *d0, void *d1, void *d2) {
 
         mapped_brightness = target_brightness(intensity.val1);
         // LOG_INF("NORMAL: mapped PWM duty cycle %d\n", mapped_brightness);
-
-        if (idle_off && abs(mapped_brightness - current_brightness) <= FADE_THRESHOLD) {
-            printk("PROSPECTOR: idle_off but |target(%d) - current(%d)| <= threshold(%d), fade skipped\n",
-                    mapped_brightness, current_brightness, FADE_THRESHOLD);
-        }
 
         if (abs(mapped_brightness - current_brightness) > FADE_THRESHOLD) {
             uint8_t integrator = 0;
