@@ -8,7 +8,11 @@
 
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
-LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
+/* Own module at a hardcoded DBG level (matches brightness.c's "als" module)
+ * rather than declaring into the shared "zmk" module -- that ties compile-time
+ * visibility to CONFIG_ZMK_LOG_LEVEL, which defaults low enough to compile
+ * these LOG_INF calls out entirely. */
+LOG_MODULE_REGISTER(prospector_idle, 4);
 
 #include <zmk/event_manager.h>
 #include <zmk/events/position_state_changed.h>
