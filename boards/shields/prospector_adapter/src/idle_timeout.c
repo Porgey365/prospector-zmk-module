@@ -18,6 +18,7 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 static bool is_idle;
 
 static void idle_timeout_handler(struct k_work *work) {
+    LOG_INF("prospector idle timeout: %d s elapsed, turning display off", CONFIG_PROSPECTOR_IDLE_TIMEOUT_S);
     is_idle = true;
     prospector_brightness_set_idle(true);
 }
@@ -26,6 +27,7 @@ static K_WORK_DELAYABLE_DEFINE(idle_timeout_work, idle_timeout_handler);
 
 static void reset_idle_timer(void) {
     if (is_idle) {
+        LOG_INF("prospector idle timeout: activity detected, waking display");
         is_idle = false;
         prospector_brightness_set_idle(false);
     }
@@ -39,6 +41,8 @@ static int idle_timeout_listener(const zmk_event_t *eh) {
         return ZMK_EV_EVENT_BUBBLE;
     }
 
+    LOG_INF("prospector idle timeout: position event pos=%d state=%d", ev->position, ev->state);
+
     if (ev->state) {
         reset_idle_timer();
     }
@@ -50,6 +54,7 @@ ZMK_LISTENER(prospector_idle_timeout, idle_timeout_listener);
 ZMK_SUBSCRIPTION(prospector_idle_timeout, zmk_position_state_changed);
 
 static int idle_timeout_init(void) {
+    LOG_INF("prospector idle timeout: armed, timeout=%d s", CONFIG_PROSPECTOR_IDLE_TIMEOUT_S);
     k_work_reschedule(&idle_timeout_work, K_SECONDS(CONFIG_PROSPECTOR_IDLE_TIMEOUT_S));
     return 0;
 }
